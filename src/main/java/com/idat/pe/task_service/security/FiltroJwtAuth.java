@@ -24,18 +24,34 @@ public class FiltroJwtAuth extends OncePerRequestFilter {
         try {
             String token = jwtService.extraerTokenUsuario(request);
             
-            if (token != null && jwtService.validarToken(token)) {
+            if (token == null) {
+                // Si no hay token, continuar sin autenticación
+                // El SecurityConfig rechazará con 403 si /api/tareas requiere autenticación
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
+            
+            if (jwtService.validarToken(token)) {
                 Claims claims = jwtService.obtenerClaims(token);
                 jwtService.generarAutenticacion(claims);
             } else {
+                // Token inválido o expirado
                 SecurityContextHolder.clearContext();
             }
             
             filterChain.doFilter(request, response);
             
         } catch (JwtException ex) {
+            SecurityContextHolder.clearContext();
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, ex.getMessage());
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\": \"Token inválido: " + ex.getMessage() + "\"}");
+        } catch (Exception ex) {
+            SecurityContextHolder.clearContext();
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\": \"Error en validación JWT: " + ex.getMessage() + "\"}");
         }
     }
 }
