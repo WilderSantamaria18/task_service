@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 public class TareaService {
 
     private final TareaRepository tareaRepository;
+    private final GoogleCalendarService googleCalendarService;
 
     /**
      * Extrae el usuarioId del JWT desde el contexto de seguridad
@@ -33,11 +34,11 @@ public class TareaService {
         try {
             String username = SecurityContextHolder.getContext()
                     .getAuthentication().getName();
-            
+
             // Intentar obtener usuarioId del Claims (mejor práctica)
             // Por ahora retornamos el username convertido a Integer (temporal)
             // En producción, esto debería venir en los claims del JWT
-            
+
             // Por ahora retornamos directamente el nombre como ID
             // Este es un placeholder que se debe actualizar cuando tengas el JWT completo
             return null; // Placeholder - ver implementación abajo
@@ -52,13 +53,13 @@ public class TareaService {
      */
     public List<TareaResponse> listarTareasPorUsuario(Integer usuarioId, Estado estado) {
         List<Tarea> tareas;
-        
+
         if (estado != null) {
             tareas = tareaRepository.findByUsuarioIdAndEstado(usuarioId, estado);
         } else {
             tareas = tareaRepository.findByUsuarioId(usuarioId);
         }
-        
+
         return tareas.stream()
                 .map(this::convertirAResponse)
                 .collect(Collectors.toList());
@@ -71,12 +72,12 @@ public class TareaService {
     public TareaResponse obtenerTarea(Integer id, Integer usuarioId) {
         Tarea tarea = tareaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
-        
+
         // Validar autorización
         if (!tarea.getUsuarioId().equals(usuarioId)) {
             throw new RuntimeException("No autorizado: La tarea no pertenece al usuario actual");
         }
-        
+
         return convertirAResponse(tarea);
     }
 
@@ -95,8 +96,21 @@ public class TareaService {
                 .googleEventId(request.getGoogleEventId())
                 .googleEventLink(request.getGoogleEventLink())
                 .build();
-        
+
         Tarea tareaGuardada = tareaRepository.save(tarea);
+
+        // Sincronizar con Google Calendar
+        try {
+            com.google.api.services.calendar.model.Event event = googleCalendarService.crearEvento(tareaGuardada);
+            if (event != null) {
+                tareaGuardada.setGoogleEventId(event.getId());
+                tareaGuardada.setGoogleEventLink(event.getHtmlLink());
+                tareaRepository.save(tareaGuardada);
+            }
+        } catch (Exception e) {
+            System.err.println("No se pudo sincronizar con Google Calendar");
+        }
+
         return convertirAResponse(tareaGuardada);
     }
 
@@ -107,12 +121,12 @@ public class TareaService {
     public TareaResponse actualizarTarea(Integer id, TareaRequest request, Integer usuarioId) {
         Tarea tarea = tareaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
-        
+
         // Validar autorización
         if (!tarea.getUsuarioId().equals(usuarioId)) {
             throw new RuntimeException("No autorizado: La tarea no pertenece al usuario actual");
         }
-        
+
         // Actualizar campos
         tarea.setTitulo(request.getTitulo());
         tarea.setDescripcion(request.getDescripcion());
@@ -120,8 +134,22 @@ public class TareaService {
         tarea.setPrioridad(request.getPrioridad());
         tarea.setGoogleEventId(request.getGoogleEventId());
         tarea.setGoogleEventLink(request.getGoogleEventLink());
-        
+
         Tarea tareaActualizada = tareaRepository.save(tarea);
+
+        // Sincronizar con Google Calendar
+        try {
+            com.google.api.services.calendar.model.Event event = googleCalendarService
+                    .actualizarEvento(tareaActualizada);
+            if (event != null && (tareaActualizada.getGoogleEventId() == null)) {
+                tareaActualizada.setGoogleEventId(event.getId());
+                tareaActualizada.setGoogleEventLink(event.getHtmlLink());
+                tareaRepository.save(tareaActualizada);
+            }
+        } catch (Exception e) {
+            System.err.println("No se pudo sincronizar actualización con Google Calendar");
+        }
+
         return convertirAResponse(tareaActualizada);
     }
 
@@ -131,12 +159,17 @@ public class TareaService {
     public void eliminarTarea(Integer id, Integer usuarioId) {
         Tarea tarea = tareaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
-        
+
         // Validar autorización
         if (!tarea.getUsuarioId().equals(usuarioId)) {
             throw new RuntimeException("No autorizado: La tarea no pertenece al usuario actual");
         }
-        
+
+        // Eliminar evento de Google Calendar
+        if (tarea.getGoogleEventId() != null) {
+            googleCalendarService.eliminarEvento(tarea.getGoogleEventId());
+        }
+
         tareaRepository.delete(tarea);
     }
 
@@ -147,12 +180,12 @@ public class TareaService {
     public TareaResponse cambiarEstado(Integer id, Estado nuevoEstado, Integer usuarioId) {
         Tarea tarea = tareaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
-        
+
         // Validar autorización
         if (!tarea.getUsuarioId().equals(usuarioId)) {
             throw new RuntimeException("No autorizado: La tarea no pertenece al usuario actual");
         }
-        
+
         tarea.setEstado(nuevoEstado);
         Tarea tareaActualizada = tareaRepository.save(tarea);
         return convertirAResponse(tareaActualizada);
