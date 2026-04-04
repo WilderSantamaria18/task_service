@@ -32,7 +32,7 @@ import java.util.List;
 public class TareaController {
 
     private final TareaService tareaService;
-    
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
@@ -47,21 +47,22 @@ public class TareaController {
             if (header == null || !header.startsWith("Bearer ")) {
                 throw new RuntimeException("Token no encontrado en el header");
             }
-            
+
             String token = header.substring(7); // Quita "Bearer "
-            
+
             // Parsea el JWT para obtener los claims
-            SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+            SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
             Claims claims = Jwts.parser()
                     .verifyWith(key)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-            
+
             // Extrae el 'id' del claim (que es el usuarioId)
             String usuarioIdStr = claims.getId();
             return Integer.parseInt(usuarioIdStr);
-            
+
         } catch (NumberFormatException ex) {
             throw new RuntimeException("El ID del usuario en el token no es un número válido");
         } catch (Exception ex) {
@@ -76,14 +77,14 @@ public class TareaController {
      * Parámetros opcionales:
      * - estado: PENDIENTE o COMPLETADA (filtra por estado)
      */
-    @GetMapping({"", "/"})
+    @GetMapping({ "", "/" })
     public ResponseEntity<List<TareaResponse>> listarTareas(
             HttpServletRequest request,
             @RequestParam(name = "estado", required = false) Estado estado) {
-        
+
         Integer usuarioId = obtenerUsuarioIdDelToken(request);
         List<TareaResponse> tareas = tareaService.listarTareasPorUsuario(usuarioId, estado);
-        
+
         return ResponseEntity.ok(tareas);
     }
 
@@ -97,7 +98,7 @@ public class TareaController {
             @PathVariable Integer id) {
         Integer usuarioId = obtenerUsuarioIdDelToken(request);
         TareaResponse tarea = tareaService.obtenerTarea(id, usuarioId);
-        
+
         return ResponseEntity.ok(tarea);
     }
 
@@ -106,13 +107,13 @@ public class TareaController {
      * Crear una nueva tarea
      * El usuarioId se extrae automáticamente del JWT
      */
-    @PostMapping({"", "/"})
+    @PostMapping({ "", "/" })
     public ResponseEntity<TareaResponse> crearTarea(
             HttpServletRequest request,
             @Valid @RequestBody TareaRequest tareaRequest) {
         Integer usuarioId = obtenerUsuarioIdDelToken(request);
         TareaResponse tarea = tareaService.crearTarea(tareaRequest, usuarioId);
-        
+
         return ResponseEntity.status(HttpStatus.CREATED).body(tarea);
     }
 
@@ -125,10 +126,10 @@ public class TareaController {
             HttpServletRequest request,
             @PathVariable Integer id,
             @Valid @RequestBody TareaRequest tareaRequest) {
-        
+
         Integer usuarioId = obtenerUsuarioIdDelToken(request);
         TareaResponse tarea = tareaService.actualizarTarea(id, tareaRequest, usuarioId);
-        
+
         return ResponseEntity.ok(tarea);
     }
 
@@ -142,7 +143,7 @@ public class TareaController {
             @PathVariable Integer id) {
         Integer usuarioId = obtenerUsuarioIdDelToken(request);
         tareaService.eliminarTarea(id, usuarioId);
-        
+
         return ResponseEntity.noContent().build();
     }
 
@@ -157,10 +158,10 @@ public class TareaController {
             HttpServletRequest request,
             @PathVariable Integer id,
             @RequestBody EstadoRequest estadoRequest) {
-        
+
         Integer usuarioId = obtenerUsuarioIdDelToken(request);
         TareaResponse tarea = tareaService.cambiarEstado(id, estadoRequest.getEstado(), usuarioId);
-        
+
         return ResponseEntity.ok(tarea);
     }
 

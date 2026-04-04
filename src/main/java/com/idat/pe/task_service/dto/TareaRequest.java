@@ -23,9 +23,11 @@ public class TareaRequest {
     @NotBlank(message = "El título es requerido")
     private String titulo;
 
+    @NotBlank(message = "La descripción es requerida")
     private String descripcion;
 
-    private LocalDateTime fechaLimite;
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm")
+    private java.time.LocalDateTime fechaLimite;
 
     @NotNull(message = "La prioridad es requerida")
     private Prioridad prioridad;

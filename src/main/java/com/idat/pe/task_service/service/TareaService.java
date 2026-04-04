@@ -5,9 +5,7 @@ import com.idat.pe.task_service.dto.TareaResponse;
 import com.idat.pe.task_service.entity.Tarea;
 import com.idat.pe.task_service.entity.Tarea.Estado;
 import com.idat.pe.task_service.repository.TareaRepository;
-import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,26 +24,7 @@ public class TareaService {
     private final TareaRepository tareaRepository;
     private final GoogleCalendarService googleCalendarService;
 
-    /**
-     * Extrae el usuarioId del JWT desde el contexto de seguridad
-     * El JWT contiene 'sub' (username) y 'usuarioId' en claims
-     */
-    private Integer obtenerUsuarioIdDelToken() {
-        try {
-            String username = SecurityContextHolder.getContext()
-                    .getAuthentication().getName();
 
-            // Intentar obtener usuarioId del Claims (mejor práctica)
-            // Por ahora retornamos el username convertido a Integer (temporal)
-            // En producción, esto debería venir en los claims del JWT
-
-            // Por ahora retornamos directamente el nombre como ID
-            // Este es un placeholder que se debe actualizar cuando tengas el JWT completo
-            return null; // Placeholder - ver implementación abajo
-        } catch (Exception ex) {
-            throw new RuntimeException("No se pudo extraer el usuarioId del token");
-        }
-    }
 
     /**
      * GET /api/tareas - Listar todas las tareas del usuario actual
