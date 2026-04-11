@@ -59,9 +59,12 @@ public class TareaController {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            // Extrae el 'id' del claim (que es el usuarioId)
-            String usuarioIdStr = claims.getId();
-            return Integer.parseInt(usuarioIdStr);
+            // Extrae el 'id' del claim (que fue guardado como Integer en Auth Service)
+            Object usuarioIdObj = claims.get("id");
+            if (usuarioIdObj == null) {
+                throw new RuntimeException("El campo 'id' no está presente en el token");
+            }
+            return Integer.parseInt(usuarioIdObj.toString());
 
         } catch (NumberFormatException ex) {
             throw new RuntimeException("El ID del usuario en el token no es un número válido");
