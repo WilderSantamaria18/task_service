@@ -23,6 +23,8 @@ public class TareaService {
 
     private final TareaRepository tareaRepository;
     private final GoogleCalendarService googleCalendarService;
+    private final com.idat.pe.task_service.remote.client.UsuarioClient usuarioClient;
+    private final jakarta.servlet.http.HttpServletRequest httpServletRequest;
 
 
 
@@ -49,6 +51,9 @@ public class TareaService {
      * Valida que pertenezca al usuario actual
      */
     public TareaResponse obtenerTarea(Integer id, Integer usuarioId) {
+        // Validar usuario contra auth-service
+        validarUsuarioExterno(usuarioId);
+
         Tarea tarea = tareaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
 
@@ -65,6 +70,9 @@ public class TareaService {
      * Automáticamente asigna el usuarioId del token
      */
     public TareaResponse crearTarea(TareaRequest request, Integer usuarioId) {
+        // Validar usuario contra auth-service
+        validarUsuarioExterno(usuarioId);
+
         Tarea tarea = Tarea.builder()
                 .titulo(request.getTitulo())
                 .descripcion(request.getDescripcion())
@@ -98,6 +106,9 @@ public class TareaService {
      * Solo es posible si el usuario es el propietario
      */
     public TareaResponse actualizarTarea(Integer id, TareaRequest request, Integer usuarioId) {
+        // Validar usuario contra auth-service
+        validarUsuarioExterno(usuarioId);
+
         Tarea tarea = tareaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
 
@@ -136,6 +147,9 @@ public class TareaService {
      * DELETE /api/tareas/{id} - Eliminar una tarea
      */
     public void eliminarTarea(Integer id, Integer usuarioId) {
+        // Validar usuario contra auth-service
+        validarUsuarioExterno(usuarioId);
+
         Tarea tarea = tareaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
 
@@ -157,6 +171,9 @@ public class TareaService {
      * Permite cambiar entre PENDIENTE y COMPLETADA
      */
     public TareaResponse cambiarEstado(Integer id, Estado nuevoEstado, Integer usuarioId) {
+        // Validar usuario contra auth-service
+        validarUsuarioExterno(usuarioId);
+
         Tarea tarea = tareaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
 
@@ -168,6 +185,22 @@ public class TareaService {
         tarea.setEstado(nuevoEstado);
         Tarea tareaActualizada = tareaRepository.save(tarea);
         return convertirAResponse(tareaActualizada);
+    }
+
+    /**
+     * Validar que el usuario exista en el auth-service
+     */
+    private void validarUsuarioExterno(Integer usuarioId) {
+        String authHeader = httpServletRequest.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                usuarioClient.obtenerUsuario(usuarioId, authHeader);
+            } catch (Exception e) {
+                throw new RuntimeException("Usuario no encontrado o error de comunicación con auth_service: " + e.getMessage());
+            }
+        } else {
+            throw new RuntimeException("Token de autorización no presente");
+        }
     }
 
     /**
