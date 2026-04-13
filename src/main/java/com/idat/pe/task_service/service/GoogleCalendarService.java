@@ -38,12 +38,12 @@ public class GoogleCalendarService {
 
     private Calendar getCalendarService() throws Exception {
         final HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-        
+
         InputStream in = GoogleCalendarService.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
         if (in == null) {
             throw new IOException("Resource not found: " + CREDENTIALS_FILE_PATH);
         }
-        
+
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
 
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
@@ -53,7 +53,7 @@ public class GoogleCalendarService {
                 .build();
 
         Credential credential = new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
-        
+
         return new Calendar.Builder(httpTransport, JSON_FACTORY, credential)
                 .setApplicationName(APPLICATION_NAME)
                 .build();
@@ -62,7 +62,7 @@ public class GoogleCalendarService {
     public Event crearEvento(Tarea tarea) {
         try {
             Calendar service = getCalendarService();
-            
+
             Event event = new Event()
                     .setSummary(tarea.getTitulo())
                     .setDescription(tarea.getDescripcion());
@@ -83,14 +83,14 @@ public class GoogleCalendarService {
                 event.setEnd(end);
             } else {
                 // Si no hay fecha, ponerlo para hoy
-                 DateTime now = new DateTime(System.currentTimeMillis());
-                 event.setStart(new EventDateTime().setDateTime(now));
-                 event.setEnd(new EventDateTime().setDateTime(new DateTime(System.currentTimeMillis() + 3600000)));
+                DateTime now = new DateTime(System.currentTimeMillis());
+                event.setStart(new EventDateTime().setDateTime(now));
+                event.setEnd(new EventDateTime().setDateTime(new DateTime(System.currentTimeMillis() + 3600000)));
             }
 
             event = service.events().insert("primary", event).execute();
             return event;
-            
+
         } catch (Exception e) {
             System.err.println("Error creando evento en Google Calendar: " + e.getMessage());
             e.printStackTrace();
@@ -99,19 +99,20 @@ public class GoogleCalendarService {
     }
 
     public Event actualizarEvento(Tarea tarea) {
-        if (tarea.getGoogleEventId() == null) return crearEvento(tarea);
-        
+        if (tarea.getGoogleEventId() == null)
+            return crearEvento(tarea);
+
         try {
             Calendar service = getCalendarService();
-            
+
             Event event = service.events().get("primary", tarea.getGoogleEventId()).execute();
             event.setSummary(tarea.getTitulo())
-                 .setDescription(tarea.getDescripcion());
+                    .setDescription(tarea.getDescripcion());
 
             if (tarea.getFechaLimite() != null) {
                 DateTime startDateTime = new DateTime(convertToDate(tarea.getFechaLimite()));
                 event.setStart(new EventDateTime().setDateTime(startDateTime).setTimeZone("America/Lima"));
-                
+
                 DateTime endDateTime = new DateTime(convertToDate(tarea.getFechaLimite().plusHours(1)));
                 event.setEnd(new EventDateTime().setDateTime(endDateTime).setTimeZone("America/Lima"));
             }
@@ -124,7 +125,8 @@ public class GoogleCalendarService {
     }
 
     public void eliminarEvento(String eventId) {
-        if (eventId == null) return;
+        if (eventId == null)
+            return;
         try {
             Calendar service = getCalendarService();
             service.events().delete("primary", eventId).execute();
